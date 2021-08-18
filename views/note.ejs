@@ -1,0 +1,141 @@
+<%- include('headers/html-header', {}); -%>
+<div class="container-fluid d-flex align-items-stretch">
+  <div class="row align-items-stretch w-100">
+    <div class="col-12 py-3">
+      <form action="/note" method="POST">
+        <div class="row">
+          <div class="col-12">
+            <h4 class="mb-3 index-header">Date & Time of Observation</h4>
+          </div>
+          <div class="col-12 col-md-6 mb-3">
+            <label for="dateSpotted">
+              <strong>Date</strong>
+            </label>
+            <input
+              type="date"
+              class="form-control"
+              id="dateSpotted"
+              name="date"
+              value=""
+            />
+            <div class="invalid-feedback">Some invalid feedback</div>
+          </div>
+          <div class="col-12 col-md-6 mb-3">
+            <label for="timeSpotted">
+              <strong>Time</strong>
+            </label>
+            <input
+              type="time"
+              class="form-control"
+              id="timeSpotted"
+              name="time"
+              value=""
+            />
+            <div class="invalid-feedback">Some invalid feedback</div>
+          </div>
+          <div class="col-12">
+            <h4 class="mb-3 index-header">Duration of Observation</h4>
+          </div>
+          <div class="col-4 mb-3">
+            <label for="durationHourSpotted">
+              <strong>Hours</strong>
+            </label>
+            <input
+              type="number"
+              class="form-control"
+              id="durationHourSpotted"
+              name="duration_hour"
+              value=""
+              max="23"
+            />
+            <div class="invalid-feedback">Some invalid feedback</div>
+          </div>
+          <div class="col-4 mb-3">
+            <label for="durationMinuteSpotted">
+              <strong>Minutes</strong>
+            </label>
+            <input
+              type="number"
+              class="form-control"
+              id="durationMinuteSpotted"
+              name="duration_minute"
+              value=""
+              max="59"
+            />
+            <div class="invalid-feedback">Some invalid feedback</div>
+          </div>
+          <div class="col-4 mb-3">
+            <label for="durationSecondSpotted">
+              <strong>Seconds</strong>
+            </label>
+            <input
+              type="number"
+              class="form-control"
+              id="durationSecondSpotted"
+              name="duration_second"
+              value=""
+              max="59"
+            />
+            <div class="invalid-feedback">Some invalid feedback</div>
+          </div>
+        </div>
+        <hr class="mb-3" />
+        <div class="row">
+          <div class="col-12 mb-3">
+            <h4 class="mb-3 index-header">Behaviours</h4>
+            <label class="index-header2" for="behaviour">
+              <strong>Tell us the story of your UFO sighting!</strong>
+            </label>
+            <textarea
+              class="form-control"
+              id="behaviour"
+              name="behaviour"
+              rows="5"
+              placeholder="eg. Witnessed an orange, slow moving light. Was looking out my window and saw a orange colored, non blinking light floating across the night sky. Woke up my daughters to confirm what I was seeing. The object did not blink, was definitely not a helicopter. Very bright orange and moved slowly for about 2 minutes, disappeared behind the trees and did not see it again. Never seen anything like this in my life."
+            ></textarea>
+            <div class="invalid-feedback">Some invalid feedback</div>
+          </div>
+        </div>
+        <hr class="mb-3" />
+        <div class="row">
+          <div class="col-12">
+            <h4 class="mb-3 index-header">Flock Size</h4>
+          </div>
+          <div class="col-12 col-md-6 mb-3">
+            <label class="index-header2" for="numberOfBirds">
+              <strong>Estimated number of birds in the flock</strong>
+            </label>
+            <input
+              type="number"
+              class="form-control"
+              id="numberOfBirds"
+              name="number_of_birds"
+              value=""
+            />
+            <div class="invalid-feedback">Some invalid feedback</div>
+          </div>
+          <div class="col-12 col-md-6 mb-3">
+            <label class="index-header2" for="flockType">
+              <strong>Same species or mixed flock?</strong>
+            </label>
+            <select
+              class="form-select"
+              aria-label="Default select example"
+              id="flockType"
+            >
+              <option selected value="same_species">Same Species</option>
+              <option value="mixed_flock">Mixed Flock</option>
+            </select>
+            <div class="invalid-feedback">Some invalid feedback</div>
+          </div>
+        </div>
+        <hr class="mb-4" />
+        <button class="btn btn-primary btn-lg btn-block" type="submit">
+          Submit Note
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('footers/html-footer'); -%>
