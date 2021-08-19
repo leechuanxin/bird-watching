@@ -22,7 +22,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 app.get('/note', (request, response) => {
-  response.render('note', {});
+  response.render('newnote', {});
 });
 
 app.post('/note', (request, response) => {
@@ -43,6 +43,25 @@ app.post('/note', (request, response) => {
       response.status(503).send('Error executing query');
     } else {
       response.send('success!');
+    }
+  });
+});
+
+app.get('/note/:id', (request, response) => {
+  const { id } = request.params;
+  const query = `SELECT * FROM notes WHERE id=${id}`;
+  pool.query(query, (error, result) => {
+    if (error) {
+      console.log('Error executing query', error.stack);
+      response.status(503).send(`Error executing query: ${result.rows}`);
+      return;
+    }
+
+    if (result.rows.length === 0) {
+      // we didnt find this id
+      response.status(404).send('sorry, id not found!');
+    } else {
+      response.render('note', { note: result.rows[0] });
     }
   });
 });
