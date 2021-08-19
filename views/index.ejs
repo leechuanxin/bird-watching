@@ -1,0 +1,16 @@
+<%- include('headers/html-header', {}); -%>
+<div class="container-fluid d-flex align-items-stretch">
+  <div class="row align-items-stretch w-100">
+    <div class="col-12">
+      <ul>
+        <% notes.forEach(note => { %>
+        <li>
+          <a href="/note/<%= note.id %>"><%= note.id %></a>
+        </li>
+        <% }); %>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<%- include('footers/html-footer'); -%>

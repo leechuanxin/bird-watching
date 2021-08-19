@@ -21,6 +21,17 @@ app.use(express.urlencoded({ extended: false }));
 // To parse cookie string value in the header into a JavaScript Object
 app.use(cookieParser());
 
+app.get('/', (request, response) => {
+  const query = 'SELECT * FROM notes';
+  pool.query(query, (error, result) => {
+    if (error) {
+      response.status(503).send('Error executing query');
+    } else {
+      response.render('index', { notes: result.rows });
+    }
+  });
+});
+
 app.get('/note', (request, response) => {
   response.render('newnote', {});
 });
@@ -38,7 +49,7 @@ app.post('/note', (request, response) => {
     ...fields,
   ];
   const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, date, time, duration_hour, duration_minute, duration_second, behaviour, number_of_birds, flock_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *';
-  pool.query(query, input, (error, result) => {
+  pool.query(query, input, (error) => {
     if (error) {
       response.status(503).send('Error executing query');
     } else {
