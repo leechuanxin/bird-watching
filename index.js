@@ -177,11 +177,11 @@ app.post('/note', (request, response) => {
       request.cookies.loggedIn,
     ];
     const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, date, time, duration_hour, duration_minute, duration_second, behaviour, number_of_birds, flock_type, created_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *';
-    pool.query(query, input, (error) => {
+    pool.query(query, input, (error, result) => {
       if (error) {
         response.status(503).send('Error executing query');
       } else {
-        response.send('success!');
+        response.redirect(`/note/${result.rows[0].id}`);
       }
     });
   }
