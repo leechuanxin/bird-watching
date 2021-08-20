@@ -5,7 +5,7 @@
       <ul>
         <% notes.forEach(note => { %>
         <li>
-          <a href="/note/<%= note.id %>"><%= note.id %></a>
+          <a href="/note/<%= note.id %>">Created by: <%= note.email %></a>
         </li>
         <% }); %>
       </ul>

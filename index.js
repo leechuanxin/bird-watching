@@ -26,7 +26,6 @@ app.use(methodOverride('_method'));
 app.use(cookieParser());
 
 app.get('/', (request, response) => {
-  const query = 'SELECT * FROM notes';
   if (
     !request.cookies.loggedIn
     || Number.isNaN(Number(request.cookies.loggedIn))
@@ -34,6 +33,7 @@ app.get('/', (request, response) => {
   ) {
     response.redirect('/login');
   } else {
+    const query = 'SELECT notes.id, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id';
     pool.query(query, (error, result) => {
       if (error) {
         response.status(503).send('Error executing query');
