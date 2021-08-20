@@ -157,25 +157,34 @@ app.get('/note', (request, response) => {
 });
 
 app.post('/note', (request, response) => {
-  const fields = Object.values(request.body);
-  const currentTime = moment();
-  const createdDate = currentTime.format('YYYY-MM-DD');
-  const createdTime = currentTime.format('HH:mm:ss');
-  const input = [
-    createdDate,
-    createdTime,
-    createdDate,
-    createdTime,
-    ...fields,
-  ];
-  const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, date, time, duration_hour, duration_minute, duration_second, behaviour, number_of_birds, flock_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *';
-  pool.query(query, input, (error) => {
-    if (error) {
-      response.status(503).send('Error executing query');
-    } else {
-      response.send('success!');
-    }
-  });
+  if (
+    !request.cookies.loggedIn
+    || Number.isNaN(Number(request.cookies.loggedIn))
+    || Number(request.cookies.loggedIn) < 1
+  ) {
+    response.status(403).send('You need to be logged in!');
+  } else {
+    const fields = Object.values(request.body);
+    const currentTime = moment();
+    const createdDate = currentTime.format('YYYY-MM-DD');
+    const createdTime = currentTime.format('HH:mm:ss');
+    const input = [
+      createdDate,
+      createdTime,
+      createdDate,
+      createdTime,
+      ...fields,
+      request.cookies.loggedIn,
+    ];
+    const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, date, time, duration_hour, duration_minute, duration_second, behaviour, number_of_birds, flock_type, created_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *';
+    pool.query(query, input, (error) => {
+      if (error) {
+        response.status(503).send('Error executing query');
+      } else {
+        response.send('success!');
+      }
+    });
+  }
 });
 
 app.get('/note/:id', (request, response) => {
