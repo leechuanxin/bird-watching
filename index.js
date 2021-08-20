@@ -1,5 +1,6 @@
 import express from 'express';
 import pg from 'pg';
+import methodOverride from 'method-override';
 import cookieParser from 'cookie-parser';
 import moment from 'moment';
 import jsSHA from 'jssha';
@@ -19,22 +20,38 @@ const app = express();
 app.set('view engine', 'ejs');
 // To receive POST request body data in request.body
 app.use(express.urlencoded({ extended: false }));
+// Override POST requests with query param ?_method=PUT to be PUT requests
+app.use(methodOverride('_method'));
 // To parse cookie string value in the header into a JavaScript Object
 app.use(cookieParser());
 
 app.get('/', (request, response) => {
   const query = 'SELECT * FROM notes';
-  pool.query(query, (error, result) => {
-    if (error) {
-      response.status(503).send('Error executing query');
-    } else {
-      response.render('index', { notes: result.rows });
-    }
-  });
+  if (
+    !request.cookies.loggedIn
+    || Number.isNaN(Number(request.cookies.loggedIn))
+    || Number(request.cookies.loggedIn) < 1
+  ) {
+    response.redirect('/login');
+  } else {
+    pool.query(query, (error, result) => {
+      if (error) {
+        response.status(503).send('Error executing query');
+      } else {
+        response.render('index', { notes: result.rows });
+      }
+    });
+  }
 });
 
 app.get('/login', (request, response) => {
-  response.render('login', {});
+  if (
+    request.cookies.loggedIn && Number(request.cookies.loggedIn) >= 1
+  ) {
+    response.redirect('/');
+  } else {
+    response.render('login', {});
+  }
 });
 
 app.post('/login', (request, response) => {
@@ -75,13 +92,19 @@ app.post('/login', (request, response) => {
     }
 
     // The user's password hash matches that in the DB and we authenticate the user.
-    response.cookie('loggedIn', true);
+    response.cookie('loggedIn', result.rows[0].id);
     response.redirect('/');
   });
 });
 
 app.get('/signup', (request, response) => {
-  response.render('signup', {});
+  if (
+    request.cookies.loggedIn && Number(request.cookies.loggedIn) >= 1
+  ) {
+    response.redirect('/');
+  } else {
+    response.render('signup', {});
+  }
 });
 
 app.post('/signup', (request, response) => {
@@ -112,8 +135,25 @@ app.post('/signup', (request, response) => {
   );
 });
 
+app.delete('/logout', (request, response) => {
+  if (request.cookies.loggedIn) {
+    response.clearCookie('loggedIn');
+    response.redirect('/');
+  } else {
+    response.status(403).send('Error logging out!');
+  }
+});
+
 app.get('/note', (request, response) => {
-  response.render('newnote', {});
+  if (
+    !request.cookies.loggedIn
+    || Number.isNaN(Number(request.cookies.loggedIn))
+    || Number(request.cookies.loggedIn) < 1
+  ) {
+    response.redirect('/login');
+  } else {
+    response.render('newnote', {});
+  }
 });
 
 app.post('/note', (request, response) => {
@@ -139,22 +179,30 @@ app.post('/note', (request, response) => {
 });
 
 app.get('/note/:id', (request, response) => {
-  const { id } = request.params;
-  const query = `SELECT * FROM notes WHERE id=${id}`;
-  pool.query(query, (error, result) => {
-    if (error) {
-      console.log('Error executing query', error.stack);
-      response.status(503).send(`Error executing query: ${result.rows}`);
-      return;
-    }
+  if (
+    !request.cookies.loggedIn
+    || Number.isNaN(Number(request.cookies.loggedIn))
+    || Number(request.cookies.loggedIn) < 1
+  ) {
+    response.redirect('/login');
+  } else {
+    const { id } = request.params;
+    const query = `SELECT * FROM notes WHERE id=${id}`;
+    pool.query(query, (error, result) => {
+      if (error) {
+        console.log('Error executing query', error.stack);
+        response.status(503).send(`Error executing query: ${result.rows}`);
+        return;
+      }
 
-    if (result.rows.length === 0) {
+      if (result.rows.length === 0) {
       // we didnt find this id
-      response.status(404).send('sorry, id not found!');
-    } else {
-      response.render('note', { note: result.rows[0] });
-    }
-  });
+        response.status(404).send('sorry, id not found!');
+      } else {
+        response.render('note', { note: result.rows[0] });
+      }
+    });
+  }
 });
 
 app.listen(3004);

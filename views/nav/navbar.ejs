@@ -1,0 +1,18 @@
+<nav class="navbar navbar-dark bg-dark fixed-top">
+  <div class="container-fluid">
+    <div class="row w-100">
+      <div class="col-3">
+        <a class="navbar-brand" href="#">Navbar</a>
+      </div>
+      <div class="col-9 text-end">
+        <form
+          class="d-inline-block"
+          action="/logout?_method=DELETE"
+          method="POST"
+        >
+          <input class="btn btn-danger" type="submit" value="Log Out" />
+        </form>
+      </div>
+    </div>
+  </div>
+</nav>
