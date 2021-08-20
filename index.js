@@ -2,6 +2,7 @@ import express from 'express';
 import pg from 'pg';
 import cookieParser from 'cookie-parser';
 import moment from 'moment';
+import jsSHA from 'jssha';
 
 // Initialise DB connection
 const { Pool } = pg;
@@ -30,6 +31,85 @@ app.get('/', (request, response) => {
       response.render('index', { notes: result.rows });
     }
   });
+});
+
+app.get('/login', (request, response) => {
+  response.render('login', {});
+});
+
+app.post('/login', (request, response) => {
+  const values = [request.body.email];
+
+  pool.query('SELECT * from users WHERE email=$1', values, (error, result) => {
+    if (error) {
+      response.status(503).send('Error executing query!');
+      return;
+    }
+
+    if (result.rows.length === 0) {
+      // we didnt find a user with that email.
+      // the error for password and user are the same.
+      // don't tell the user which error they got for security reasons,
+      // otherwise people can guess if a person is a user of a given service.
+      response.status(403).send('sorry!');
+      return;
+    }
+
+    // get user record from results
+    const user = result.rows[0];
+    // initialise SHA object
+    // eslint-disable-next-line new-cap
+    const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+    // input the password from the request to the SHA object
+    shaObj.update(request.body.password);
+    // get the hashed value as output from the SHA object
+    const hashedPassword = shaObj.getHash('HEX');
+
+    // If the user's hashed password in the database
+    // does not match the hashed input password, login fails
+    if (user.password !== hashedPassword) {
+      // the error for incorrect email and incorrect password are the same for security reasons.
+      // This is to prevent detection of whether a user has an account for a given service.
+      response.status(403).send('login failed!');
+      return;
+    }
+
+    // The user's password hash matches that in the DB and we authenticate the user.
+    response.cookie('loggedIn', true);
+    response.redirect('/');
+  });
+});
+
+app.get('/signup', (request, response) => {
+  response.render('signup', {});
+});
+
+app.post('/signup', (request, response) => {
+  // initialise the SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // input the password from the request to the SHA object
+  shaObj.update(request.body.password);
+  // get the hashed password as output from the SHA object
+  const hashedPassword = shaObj.getHash('HEX');
+
+  // store the hashed password in our DB
+  const values = [request.body.email, hashedPassword];
+  pool.query(
+    'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING *',
+    values,
+    (error) => {
+      // ...
+      if (error) {
+        response.send('DB write error');
+        return;
+      }
+
+      if (!error) {
+        response.redirect('/login');
+      }
+    },
+  );
 });
 
 app.get('/note', (request, response) => {
