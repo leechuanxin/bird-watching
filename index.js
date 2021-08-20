@@ -214,4 +214,42 @@ app.get('/note/:id', (request, response) => {
   }
 });
 
+app.get('/users/:id', (request, response) => {
+  if (
+    !request.cookies.loggedIn
+    || Number.isNaN(Number(request.cookies.loggedIn))
+    || Number(request.cookies.loggedIn) < 1
+  ) {
+    response.redirect('/login');
+  } else {
+    const { id } = request.params;
+    const query = `SELECT * FROM users WHERE id=${id}`;
+    pool.query(query, (error, result) => {
+      if (error) {
+        console.log('Error executing query', error.stack);
+        response.status(503).send(`Error executing query: ${result.rows}`);
+        return;
+      }
+
+      if (result.rows.length === 0) {
+      // we didnt find this id
+        response.status(404).send('sorry, id not found!');
+      } else {
+        const notesQuery = `SELECT * FROM notes WHERE created_user_id=${id}`;
+        pool.query(notesQuery, (notesQueryError, notesQueryResult) => {
+          if (notesQueryError) {
+            console.log('Error executing query', notesQueryError.stack);
+            response.status(503).send(`Error executing query: ${notesQueryResult.rows}`);
+          } else if (notesQueryResult.rows.length === 0) {
+            // we didnt find this id
+            response.status(404).send('sorry, no notes found!');
+          } else {
+            response.render('user_notes', { notes: notesQueryResult.rows, session: { sessionId: request.cookies.loggedIn } });
+          }
+        });
+      }
+    });
+  }
+});
+
 app.listen(3004);
