@@ -5,6 +5,8 @@
         <a class="navbar-brand" href="#">Navbar</a>
       </div>
       <div class="col-9 text-end">
+        <% if (!Number.isNaN(Number(session.sessionId)) &&
+        Number(session.sessionId) > 0) { %>
         <form
           class="d-inline-block"
           action="/logout?_method=DELETE"
@@ -12,6 +14,7 @@
         >
           <input class="btn btn-danger" type="submit" value="Log Out" />
         </form>
+        <% } %>
       </div>
     </div>
   </div>

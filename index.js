@@ -38,7 +38,7 @@ app.get('/', (request, response) => {
       if (error) {
         response.status(503).send('Error executing query');
       } else {
-        response.render('index', { notes: result.rows });
+        response.render('index', { notes: result.rows, session: { sessionId: request.cookies.loggedIn } });
       }
     });
   }
@@ -50,7 +50,7 @@ app.get('/login', (request, response) => {
   ) {
     response.redirect('/');
   } else {
-    response.render('login', {});
+    response.render('login', { session: { sessionId: request.cookies.loggedIn } });
   }
 });
 
@@ -103,7 +103,7 @@ app.get('/signup', (request, response) => {
   ) {
     response.redirect('/');
   } else {
-    response.render('signup', {});
+    response.render('signup', { session: { sessionId: request.cookies.loggedIn } });
   }
 });
 
@@ -152,7 +152,7 @@ app.get('/note', (request, response) => {
   ) {
     response.redirect('/login');
   } else {
-    response.render('newnote', {});
+    response.render('newnote', { session: { sessionId: request.cookies.loggedIn } });
   }
 });
 
@@ -208,7 +208,7 @@ app.get('/note/:id', (request, response) => {
       // we didnt find this id
         response.status(404).send('sorry, id not found!');
       } else {
-        response.render('note', { note: result.rows[0] });
+        response.render('note', { note: result.rows[0], session: { sessionId: request.cookies.loggedIn } });
       }
     });
   }
