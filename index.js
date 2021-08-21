@@ -152,7 +152,8 @@ app.get('/note', (request, response) => {
   ) {
     response.redirect('/login');
   } else {
-    response.render('newnote', { session: { sessionId: request.cookies.loggedIn } });
+    const typeObj = { type: { name: 'new' } };
+    response.render('newnote', { note: {}, session: { sessionId: request.cookies.loggedIn }, ...typeObj });
   }
 });
 
@@ -199,7 +200,6 @@ app.get('/note/:id', (request, response) => {
     const query = `SELECT * FROM notes WHERE id=${id}`;
     pool.query(query, (error, result) => {
       if (error) {
-        console.log('Error executing query', error.stack);
         response.status(503).send(`Error executing query: ${result.rows}`);
         return;
       }
@@ -208,7 +208,75 @@ app.get('/note/:id', (request, response) => {
       // we didnt find this id
         response.status(404).send('sorry, id not found!');
       } else {
-        response.render('note', { note: result.rows[0], session: { sessionId: request.cookies.loggedIn } });
+        response.render('note', {
+          note: {
+            ...result.rows[0],
+            date: moment(result.rows[0].date).format('MMMM Do, YYYY'),
+          },
+          session: { sessionId: request.cookies.loggedIn },
+        });
+      }
+    });
+  }
+});
+
+app.get('/note/:id/edit', (request, response) => {
+  if (
+    !request.cookies.loggedIn
+    || Number.isNaN(Number(request.cookies.loggedIn))
+    || Number(request.cookies.loggedIn) < 1
+  ) {
+    response.redirect('/login');
+  } else {
+    const { id } = request.params;
+    const query = `SELECT * FROM notes WHERE id=${id}`;
+    pool.query(query, (error, result) => {
+      if (error) {
+        response.status(503).send(`Error executing query: ${result.rows}`);
+        return;
+      }
+
+      if (result.rows.length === 0) {
+      // we didnt find this id
+        response.status(404).send('sorry, id not found!');
+      } else {
+        const typeObj = { type: { name: 'edit' } };
+        response.render('newnote', {
+          note: {
+            ...result.rows[0],
+            date: moment(result.rows[0].date).format('YYYY-MM-DD'),
+          },
+          session: { sessionId: request.cookies.loggedIn },
+          ...typeObj,
+        });
+      }
+    });
+  }
+});
+
+app.put('/note/:id/edit', (request, response) => {
+  if (
+    !request.cookies.loggedIn
+    || Number.isNaN(Number(request.cookies.loggedIn))
+    || Number(request.cookies.loggedIn) < 1
+  ) {
+    response.status(403).send('You need to be logged in!');
+  } else {
+    const fields = Object.values(request.body);
+    const currentTime = moment();
+    const lastUpdatedDate = currentTime.format('YYYY-MM-DD');
+    const lastUpdatedTime = currentTime.format('HH:mm:ss');
+    const input = [
+      lastUpdatedDate,
+      lastUpdatedTime,
+      ...fields,
+    ];
+    const query = `UPDATE notes SET last_updated_date=$1, last_updated_time=$2, date=$3, time=$4, duration_hour=$5, duration_minute=$6, duration_second=$7, behaviour=$8, number_of_birds=$9, flock_type=$10 WHERE id=${request.params.id} RETURNING *`;
+    pool.query(query, input, (error, result) => {
+      if (error) {
+        response.status(503).send('Error executing query');
+      } else {
+        response.redirect(`/note/${result.rows[0].id}`);
       }
     });
   }
@@ -226,7 +294,6 @@ app.get('/users/:id', (request, response) => {
     const query = `SELECT * FROM users WHERE id=${id}`;
     pool.query(query, (error, result) => {
       if (error) {
-        console.log('Error executing query', error.stack);
         response.status(503).send(`Error executing query: ${result.rows}`);
         return;
       }
@@ -238,7 +305,6 @@ app.get('/users/:id', (request, response) => {
         const notesQuery = `SELECT * FROM notes WHERE created_user_id=${id}`;
         pool.query(notesQuery, (notesQueryError, notesQueryResult) => {
           if (notesQueryError) {
-            console.log('Error executing query', notesQueryError.stack);
             response.status(503).send(`Error executing query: ${notesQueryResult.rows}`);
           } else if (notesQueryResult.rows.length === 0) {
             // we didnt find this id

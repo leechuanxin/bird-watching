@@ -2,74 +2,75 @@
 <div class="container-fluid d-flex align-items-stretch pt-5">
   <div class="row align-items-stretch w-100 pt-3">
     <div class="col-12 py-3">
-      <form action="/note" method="POST">
-        <div class="row">
-          <div class="col-12">
-            <h4 class="mb-3 index-header">Date & Time of Observation</h4>
-          </div>
-          <div class="col-12 col-md-6 mb-3">
-            <p>
-              <strong>Date</strong>
-            </p>
-            <p><%= note.date %></p>
-          </div>
-          <div class="col-12 col-md-6 mb-3">
-            <p>
-              <strong>Time</strong>
-            </p>
-            <p><%= note.time %></p>
-          </div>
-          <div class="col-12">
-            <h4 class="mb-3 index-header">Duration of Observation</h4>
-          </div>
-          <div class="col-4 mb-3">
-            <p>
-              <strong>Hours</strong>
-            </p>
-            <p><%= note.duration_hour %></p>
-          </div>
-          <div class="col-4 mb-3">
-            <p>
-              <strong>Minutes</strong>
-            </p>
-            <p><%= note.duration_minute %></p>
-          </div>
-          <div class="col-4 mb-3">
-            <p>
-              <strong>Seconds</strong>
-            </p>
-            <p><%= note.duration_second %></p>
-          </div>
+      <div class="row">
+        <div class="col-12">
+          <h4 class="mb-3 index-header">Date & Time of Observation</h4>
         </div>
-        <hr class="mb-3" />
-        <div class="row">
-          <div class="col-12 mb-3">
-            <h4 class="mb-3 index-header">Behaviours</h4>
-            <p>
-              <strong>Tell us the story of your UFO sighting!</strong>
-            </p>
-            <p><%= note.behaviour %></p>
-          </div>
+        <div class="col-12 col-md-6 mb-3">
+          <p>
+            <strong>Date</strong>
+          </p>
+          <p><%= note.date %></p>
         </div>
-        <hr class="mb-3" />
-        <div class="row">
-          <div class="col-12">
-            <h4 class="mb-3 index-header">Flock Size</h4>
-          </div>
-          <div class="col-12 col-md-6 mb-3">
-            <p>
-              <strong>Estimated number of birds in the flock</strong>
-            </p>
-            <p><%= note.number_of_birds %></p>
-          </div>
-          <div class="col-12 col-md-6 mb-3">
-            <p>
-              <strong>Same species or mixed flock?</strong>
-            </p>
-            <p><%= note.flock_type %></p>
-          </div>
+        <div class="col-12 col-md-6 mb-3">
+          <p>
+            <strong>Time</strong>
+          </p>
+          <p><%= note.time %></p>
         </div>
-      </form>
+        <div class="col-12">
+          <h4 class="mb-3 index-header">Duration of Observation</h4>
+        </div>
+        <div class="col-4 mb-3">
+          <p>
+            <strong>Hours</strong>
+          </p>
+          <p><%= note.duration_hour %></p>
+        </div>
+        <div class="col-4 mb-3">
+          <p>
+            <strong>Minutes</strong>
+          </p>
+          <p><%= note.duration_minute %></p>
+        </div>
+        <div class="col-4 mb-3">
+          <p>
+            <strong>Seconds</strong>
+          </p>
+          <p><%= note.duration_second %></p>
+        </div>
+      </div>
+      <hr class="mb-3" />
+      <div class="row">
+        <div class="col-12 mb-3">
+          <h4 class="mb-3 index-header">Behaviours</h4>
+          <p>
+            <strong>Tell us the behaviour of the birds!</strong>
+          </p>
+          <p><%= note.behaviour %></p>
+        </div>
+      </div>
+      <hr class="mb-3" />
+      <div class="row">
+        <div class="col-12">
+          <h4 class="mb-3 index-header">Flock Size</h4>
+        </div>
+        <div class="col-12 col-md-6 mb-3">
+          <p>
+            <strong>Estimated number of birds in the flock</strong>
+          </p>
+          <p><%= note.number_of_birds %></p>
+        </div>
+        <div class="col-12 col-md-6 mb-3">
+          <p>
+            <strong>Same species or mixed flock?</strong>
+          </p>
+          <p>
+            <% if (note.flock_type === "same_species") { %> Same Species <% }
+            else { %> Mixed Flock <% } %>
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 </div>
