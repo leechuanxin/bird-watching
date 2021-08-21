@@ -282,6 +282,25 @@ app.put('/note/:id/edit', (request, response) => {
   }
 });
 
+app.delete('/note/:id/delete', (request, response) => {
+  if (
+    !request.cookies.loggedIn
+    || Number.isNaN(Number(request.cookies.loggedIn))
+    || Number(request.cookies.loggedIn) < 1
+  ) {
+    response.status(403).send('You need to be logged in!');
+  } else {
+    const query = `DELETE FROM notes WHERE id=${request.params.id}`;
+    pool.query(query, (error) => {
+      if (error) {
+        response.status(503).send('Error executing query');
+      } else {
+        response.redirect('/');
+      }
+    });
+  }
+});
+
 app.get('/users/:id', (request, response) => {
   if (
     !request.cookies.loggedIn
