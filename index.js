@@ -450,23 +450,39 @@ app.put('/note/:id/edit', (request, response) => {
   if (hashedCookieString !== loggedIn) {
     response.status(403).send('You need to be logged in!');
   } else {
-    const fields = Object.values(request.body);
-    const currentTime = moment();
-    const lastUpdatedDate = currentTime.format('YYYY-MM-DD');
-    const lastUpdatedTime = currentTime.format('HH:mm:ss');
-    const summary = (request.body && request.body.behaviour && request.body.behaviour.trim() !== '' && request.body.behaviour.length > MAX_SUMMARY_LENGTH) ? request.body.behaviour.substring(0, MAX_SUMMARY_LENGTH).concat('...') : request.body.behaviour;
-    const input = [
-      lastUpdatedDate,
-      lastUpdatedTime,
-      ...fields,
-      summary,
-    ];
-    const query = `UPDATE notes SET last_updated_date=$1, last_updated_time=$2, date=$3, time=$4, duration_hour=$5, duration_minute=$6, duration_second=$7, behaviour=$8, number_of_birds=$9, flock_type=$10, summary=$11 WHERE id=${request.params.id} RETURNING *`;
-    pool.query(query, input, (error, result) => {
-      if (error) {
-        response.status(503).send('Error executing query');
+    const firstQuery = `SELECT * FROM notes WHERE id=${request.params.id}`;
+    pool.query(firstQuery, (firstQueryError, firstQueryResult) => {
+      if (!firstQueryError) {
+        // eslint-disable-next-line new-cap
+        const firstQueryShaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+        const unhashedCreatedUserString = `${firstQueryResult.rows[0].created_user_id}-${SALT}`;
+        firstQueryShaObj.update(unhashedCreatedUserString);
+        const hashedCreatedUserString = firstQueryShaObj.getHash('HEX');
+        if (hashedCreatedUserString !== hashedCookieString) {
+          response.status(403).send('You cannot edit a note where you aren\'t the owner!');
+        } else {
+          const fields = Object.values(request.body);
+          const currentTime = moment();
+          const lastUpdatedDate = currentTime.format('YYYY-MM-DD');
+          const lastUpdatedTime = currentTime.format('HH:mm:ss');
+          const summary = (request.body && request.body.behaviour && request.body.behaviour.trim() !== '' && request.body.behaviour.length > MAX_SUMMARY_LENGTH) ? request.body.behaviour.substring(0, MAX_SUMMARY_LENGTH).concat('...') : request.body.behaviour;
+          const input = [
+            lastUpdatedDate,
+            lastUpdatedTime,
+            ...fields,
+            summary,
+          ];
+          const query = `UPDATE notes SET last_updated_date=$1, last_updated_time=$2, date=$3, time=$4, duration_hour=$5, duration_minute=$6, duration_second=$7, behaviour=$8, number_of_birds=$9, flock_type=$10, summary=$11 WHERE id=${request.params.id} RETURNING *`;
+          pool.query(query, input, (error, result) => {
+            if (error) {
+              response.status(503).send('Error executing query');
+            } else {
+              response.redirect(`/note/${result.rows[0].id}`);
+            }
+          });
+        }
       } else {
-        response.redirect(`/note/${result.rows[0].id}`);
+        response.status(503).send('Error executing query');
       }
     });
   }
@@ -487,12 +503,28 @@ app.delete('/note/:id/delete', (request, response) => {
   if (hashedCookieString !== loggedIn) {
     response.status(403).send('You need to be logged in!');
   } else {
-    const query = `DELETE FROM notes WHERE id=${request.params.id}`;
-    pool.query(query, (error) => {
-      if (error) {
-        response.status(503).send('Error executing query');
+    const firstQuery = `SELECT * FROM notes WHERE id=${request.params.id}`;
+    pool.query(firstQuery, (firstQueryError, firstQueryResult) => {
+      if (!firstQueryError) {
+        // eslint-disable-next-line new-cap
+        const firstQueryShaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+        const unhashedCreatedUserString = `${firstQueryResult.rows[0].created_user_id}-${SALT}`;
+        firstQueryShaObj.update(unhashedCreatedUserString);
+        const hashedCreatedUserString = firstQueryShaObj.getHash('HEX');
+        if (hashedCreatedUserString !== hashedCookieString) {
+          response.status(403).send('You cannot delete a note where you aren\'t the owner!');
+        } else {
+          const query = `DELETE FROM notes WHERE id=${request.params.id}`;
+          pool.query(query, (error) => {
+            if (error) {
+              response.status(503).send('Error executing query');
+            } else {
+              response.redirect('/');
+            }
+          });
+        }
       } else {
-        response.redirect('/');
+        response.status(503).send('Error executing query');
       }
     });
   }
