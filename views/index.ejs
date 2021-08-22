@@ -17,7 +17,7 @@ session }); -%>
           <% notes.forEach((note, idx) => { %>
           <tr>
             <th scope="row"><%= idx + 1 %></th>
-            <td><a href="/note/<%= note.id %>">Mark</a></td>
+            <td><a href="/note/<%= note.id %>"><%= note.createdDateTime %></a></td>
             <td>
               <a href="/note/<%= note.id %>"><%= note.summary %></a>
             </td>

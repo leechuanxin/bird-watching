@@ -36,12 +36,32 @@ app.get('/', (request, response) => {
   ) {
     response.redirect('/login');
   } else {
-    const query = 'SELECT notes.id, notes.behaviour, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id';
+    const query = 'SELECT notes.id, notes.behaviour, notes.created_date, notes.created_time, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id';
     pool.query(query, (error, result) => {
       if (error) {
         response.status(503).send('Error executing query');
       } else {
-        response.render('index', { notes: result.rows, session: { sessionId: request.cookies.loggedIn } });
+        const rowsFmt = (result.rows.length > 0) ? result.rows.map((row) => {
+          const createdDateFmt = moment(row.created_date).format('YYYY-MM-DD').split('-');
+          const createdTimeFmt = row.created_time.split(':');
+          const createdDateTimeUtc = moment.utc(
+            Date.UTC(
+              Number(createdDateFmt[0]),
+              Number(createdDateFmt[1]) - 1,
+              Number(createdDateFmt[2]),
+              Number(createdTimeFmt[0]),
+              Number(createdTimeFmt[1]),
+              Number(createdTimeFmt[2]),
+            ),
+          );
+          const createdDateTimeLocal = createdDateTimeUtc.local().format('MMMM Do, YYYY HH:mm A');
+
+          return {
+            ...row,
+            createdDateTime: createdDateTimeLocal,
+          };
+        }) : result.rows;
+        response.render('index', { notes: rowsFmt, session: { sessionId: request.cookies.loggedIn } });
       }
     });
   }
