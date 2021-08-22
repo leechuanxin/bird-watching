@@ -140,6 +140,24 @@
             </select>
             <div class="invalid-feedback">Some invalid feedback</div>
           </div>
+          <div class="col-12 mb-3">
+            <label for="speciesId">
+              <strong>
+                Main Species Spotted:
+              </strong>
+            </label>
+            <select
+              name="species_id"
+              class="form-select"
+              aria-label="Default select example"
+              id="speciesId"
+            >
+              <% species.speciesList.forEach((specie, idx) => { %>
+                <option <% if ((idx === 0 && species.currentSpecies === 0) || species.currentSpecies === specie.id) { %>selected<% } %> value="<%= specie.id %>"><%= specie.name %> (<%= specie.scientific_name %>)</option>
+              <% }); %>
+            </select>
+            <div class="invalid-feedback">Some invalid feedback</div>
+          </div>
         </div>
         <hr class="mb-4" />
         <button class="btn btn-primary btn-lg btn-block" type="submit">

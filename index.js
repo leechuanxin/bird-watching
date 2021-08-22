@@ -254,8 +254,20 @@ app.get('/note', (request, response) => {
   if (hashedCookieString !== loggedIn) {
     response.redirect('/login');
   } else {
-    const typeObj = { type: { name: 'new' } };
-    response.render('newnote', { note: {}, session: { sessionId: userId }, ...typeObj });
+    const query = 'SELECT * FROM species';
+    pool.query(query, (error, result) => {
+      if (error) {
+        response.status(503).send('Error executing query');
+      } else {
+        const typeObj = { type: { name: 'new' } };
+        response.render('newnote', {
+          note: {},
+          session: { sessionId: userId },
+          species: { speciesList: result.rows, currentSpecies: 0 },
+          ...typeObj,
+        });
+      }
+    });
   }
 });
 
@@ -315,7 +327,7 @@ app.post('/note', (request, response) => {
       summary,
       request.cookies.userId,
     ];
-    const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, duration_hour, duration_minute, duration_second, behaviour, number_of_birds, flock_type, date, time, summary, created_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *';
+    const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, duration_hour, duration_minute, duration_second, behaviour, number_of_birds, flock_type, species_id, date, time, summary, created_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *';
     pool.query(query, input, (error, result) => {
       if (error) {
         response.status(503).send('Error executing query');
@@ -342,7 +354,7 @@ app.get('/note/:id', (request, response) => {
     response.redirect('/login');
   } else {
     const { id } = request.params;
-    const query = `SELECT * FROM notes WHERE id=${id}`;
+    const query = `SELECT notes.id, notes.created_date, notes.created_time, notes.last_updated_date, notes.last_updated_time, notes.date, notes.time, notes.duration_hour, notes.duration_minute, notes.duration_second, notes.behaviour, notes.number_of_birds, notes.flock_type, notes.created_user_id, notes.summary, notes.species_id, species.name, species.scientific_name FROM notes INNER JOIN species ON notes.species_id = species.id WHERE notes.id=${id}`;
     pool.query(query, (error, result) => {
       if (error) {
         response.status(503).send(`Error executing query: ${result.rows}`);
@@ -395,40 +407,53 @@ app.get('/note/:id/edit', (request, response) => {
   if (hashedCookieString !== loggedIn) {
     response.redirect('/login');
   } else {
-    const { id } = request.params;
-    const query = `SELECT * FROM notes WHERE id=${id}`;
+    const query = 'SELECT * FROM species';
     pool.query(query, (error, result) => {
       if (error) {
-        response.status(503).send(`Error executing query: ${result.rows}`);
-        return;
-      }
-
-      if (result.rows.length === 0) {
-      // we didnt find this id
-        response.status(404).send('sorry, id not found!');
+        response.status(503).send('Error executing query: can\'t retrieve species list.');
       } else {
         const typeObj = { type: { name: 'edit' } };
-        const dateFmt = moment(result.rows[0].date).format('YYYY-MM-DD').split('-');
-        const timeFmt = result.rows[0].time.split(':');
-        const dateTimeUtc = moment.utc(
-          Date.UTC(
-            Number(dateFmt[0]),
-            Number(dateFmt[1]) - 1,
-            Number(dateFmt[2]),
-            Number(timeFmt[0]),
-            Number(timeFmt[1]),
-            Number(timeFmt[2]),
-          ),
-        );
-        const dateTimeLocal = dateTimeUtc.local();
-        response.render('newnote', {
-          note: {
-            ...result.rows[0],
-            date: dateTimeLocal.format('YYYY-MM-DD'),
-            time: dateTimeLocal.format('HH:mm:ss'),
-          },
-          session: { sessionId: userId },
-          ...typeObj,
+        const speciesList = { speciesList: result.rows };
+
+        const { id } = request.params;
+        const getFormQuery = `SELECT notes.id, notes.created_date, notes.created_time, notes.last_updated_date, notes.last_updated_time, notes.date, notes.time, notes.duration_hour, notes.duration_minute, notes.duration_second, notes.behaviour, notes.number_of_birds, notes.flock_type, notes.created_user_id, notes.summary, notes.species_id, species.name, species.scientific_name FROM notes INNER JOIN species ON notes.species_id = species.id WHERE notes.id=${id}`;
+        pool.query(getFormQuery, (getFormError, getFormResult) => {
+          if (getFormError) {
+            response.status(503).send(`Error executing query: ${getFormResult.rows}`);
+            return;
+          }
+
+          if (getFormResult.rows.length === 0) {
+            // we didnt find this id
+            response.status(404).send('sorry, id not found!');
+          } else {
+            const dateFmt = moment(getFormResult.rows[0].date).format('YYYY-MM-DD').split('-');
+            const timeFmt = getFormResult.rows[0].time.split(':');
+            const dateTimeUtc = moment.utc(
+              Date.UTC(
+                Number(dateFmt[0]),
+                Number(dateFmt[1]) - 1,
+                Number(dateFmt[2]),
+                Number(timeFmt[0]),
+                Number(timeFmt[1]),
+                Number(timeFmt[2]),
+              ),
+            );
+            const dateTimeLocal = dateTimeUtc.local();
+            response.render('newnote', {
+              note: {
+                ...getFormResult.rows[0],
+                date: dateTimeLocal.format('YYYY-MM-DD'),
+                time: dateTimeLocal.format('HH:mm:ss'),
+              },
+              species: {
+                ...speciesList,
+                currentSpecies: getFormResult.rows[0].species_id || 0,
+              },
+              session: { sessionId: userId },
+              ...typeObj,
+            });
+          }
         });
       }
     });
@@ -472,7 +497,7 @@ app.put('/note/:id/edit', (request, response) => {
             ...fields,
             summary,
           ];
-          const query = `UPDATE notes SET last_updated_date=$1, last_updated_time=$2, date=$3, time=$4, duration_hour=$5, duration_minute=$6, duration_second=$7, behaviour=$8, number_of_birds=$9, flock_type=$10, summary=$11 WHERE id=${request.params.id} RETURNING *`;
+          const query = `UPDATE notes SET last_updated_date=$1, last_updated_time=$2, date=$3, time=$4, duration_hour=$5, duration_minute=$6, duration_second=$7, behaviour=$8, number_of_birds=$9, flock_type=$10, species_id=$11, summary=$12 WHERE id=${request.params.id} RETURNING *`;
           pool.query(query, input, (error, result) => {
             if (error) {
               response.status(503).send('Error executing query');
