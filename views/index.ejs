@@ -3,12 +3,32 @@ session }); -%>
 <div class="container-fluid d-flex align-items-stretch pt-5">
   <div class="row align-items-stretch w-100 pt-3">
     <div class="col-12">
-      <ul>
-        <% notes.forEach(note => { %>
-        <li>
-          <a href="/note/<%= note.id %>">Created by: <%= note.email %></a>
-        </li>
-        <% }); %>
+      <% if (notes.length > 0) { %>
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Created Time</th>
+            <th scope="col">Link</th>
+            <th scope="col">Author</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% notes.forEach((note, idx) => { %>
+          <tr>
+            <th scope="row"><%= idx + 1 %></th>
+            <td><a href="/note/<%= note.id %>">Mark</a></td>
+            <td>
+              <a href="/note/<%= note.id %>"><%= note.summary %></a>
+            </td>
+            <td><a href="/users/<%= note.created_user_id %>"><%= note.email %></a></td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <% } else { %>
+       <p>There are no notes. Please begin to add some!</p>
+      <% } %>
       </ul>
     </div>
   </div>

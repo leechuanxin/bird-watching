@@ -25,6 +25,9 @@ app.use(methodOverride('_method'));
 // To parse cookie string value in the header into a JavaScript Object
 app.use(cookieParser());
 
+// GLOBAL CONSTANTS
+const MAX_SUMMARY_LENGTH = 50;
+
 app.get('/', (request, response) => {
   if (
     !request.cookies.loggedIn
@@ -33,7 +36,7 @@ app.get('/', (request, response) => {
   ) {
     response.redirect('/login');
   } else {
-    const query = 'SELECT notes.id, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id';
+    const query = 'SELECT notes.id, notes.behaviour, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id';
     pool.query(query, (error, result) => {
       if (error) {
         response.status(503).send('Error executing query');
@@ -165,19 +168,48 @@ app.post('/note', (request, response) => {
   ) {
     response.status(403).send('You need to be logged in!');
   } else {
-    const fields = Object.values(request.body);
-    const currentTime = moment();
-    const createdDate = currentTime.format('YYYY-MM-DD');
-    const createdTime = currentTime.format('HH:mm:ss');
+    // retrieve field values from duration onwards (ignore date and time)
+    const fields = Object.values(request.body).slice(2);
+    const currentTime = new Date();
+    const currentTimeUtc = moment.utc(
+      Date.UTC(
+        currentTime.getUTCFullYear(),
+        currentTime.getUTCMonth(),
+        currentTime.getUTCDate(),
+        currentTime.getUTCHours(),
+        currentTime.getUTCMinutes(),
+        currentTime.getUTCSeconds(),
+      ),
+    );
+    const createdDate = currentTimeUtc.format('YYYY-MM-DD');
+    const createdTime = currentTimeUtc.format('HH:mm:ss');
+    const dateTime = new Date(`${request.body.date}T${request.body.time}:00`);
+    const dateTimeUtc = moment.utc(
+      Date.UTC(
+        dateTime.getUTCFullYear(),
+        dateTime.getUTCMonth(),
+        dateTime.getUTCDate(),
+        dateTime.getUTCHours(),
+        dateTime.getUTCMinutes(),
+        dateTime.getUTCSeconds(),
+      ),
+    );
+    const dateUtc = dateTimeUtc.format('YYYY-MM-DD');
+    const timeUtc = dateTimeUtc.format('HH:mm:ss');
+
+    const summary = (request.body && request.body.behaviour && request.body.behaviour.trim() !== '' && request.body.behaviour.length > MAX_SUMMARY_LENGTH) ? request.body.behaviour.substring(0, MAX_SUMMARY_LENGTH).concat('...') : request.body.behaviour;
     const input = [
       createdDate,
       createdTime,
       createdDate,
       createdTime,
       ...fields,
+      dateUtc,
+      timeUtc,
+      summary,
       request.cookies.loggedIn,
     ];
-    const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, date, time, duration_hour, duration_minute, duration_second, behaviour, number_of_birds, flock_type, created_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *';
+    const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, duration_hour, duration_minute, duration_second, behaviour, number_of_birds, flock_type, date, time, summary, created_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *';
     pool.query(query, input, (error, result) => {
       if (error) {
         response.status(503).send('Error executing query');
@@ -208,10 +240,25 @@ app.get('/note/:id', (request, response) => {
       // we didnt find this id
         response.status(404).send('sorry, id not found!');
       } else {
+        const dateFmt = moment(result.rows[0].date).format('YYYY-MM-DD').split('-');
+        const timeFmt = result.rows[0].time.split(':');
+        const dateTimeUtc = moment.utc(
+          Date.UTC(
+            Number(dateFmt[0]),
+            Number(dateFmt[1]) - 1,
+            Number(dateFmt[2]),
+            Number(timeFmt[0]),
+            Number(timeFmt[1]),
+            Number(timeFmt[2]),
+          ),
+        );
+        const dateTimeLocal = dateTimeUtc.local();
+
         response.render('note', {
           note: {
             ...result.rows[0],
-            date: moment(result.rows[0].date).format('MMMM Do, YYYY'),
+            date: dateTimeLocal.format('MMMM Do, YYYY'),
+            time: dateTimeLocal.format('HH:mm A'),
           },
           session: { sessionId: request.cookies.loggedIn },
         });
@@ -241,10 +288,24 @@ app.get('/note/:id/edit', (request, response) => {
         response.status(404).send('sorry, id not found!');
       } else {
         const typeObj = { type: { name: 'edit' } };
+        const dateFmt = moment(result.rows[0].date).format('YYYY-MM-DD').split('-');
+        const timeFmt = result.rows[0].time.split(':');
+        const dateTimeUtc = moment.utc(
+          Date.UTC(
+            Number(dateFmt[0]),
+            Number(dateFmt[1]) - 1,
+            Number(dateFmt[2]),
+            Number(timeFmt[0]),
+            Number(timeFmt[1]),
+            Number(timeFmt[2]),
+          ),
+        );
+        const dateTimeLocal = dateTimeUtc.local();
         response.render('newnote', {
           note: {
             ...result.rows[0],
-            date: moment(result.rows[0].date).format('YYYY-MM-DD'),
+            date: dateTimeLocal.format('YYYY-MM-DD'),
+            time: dateTimeLocal.format('HH:mm:ss'),
           },
           session: { sessionId: request.cookies.loggedIn },
           ...typeObj,
@@ -266,12 +327,14 @@ app.put('/note/:id/edit', (request, response) => {
     const currentTime = moment();
     const lastUpdatedDate = currentTime.format('YYYY-MM-DD');
     const lastUpdatedTime = currentTime.format('HH:mm:ss');
+    const summary = (request.body && request.body.behaviour && request.body.behaviour.trim() !== '' && request.body.behaviour.length > MAX_SUMMARY_LENGTH) ? request.body.behaviour.substring(0, MAX_SUMMARY_LENGTH).concat('...') : request.body.behaviour;
     const input = [
       lastUpdatedDate,
       lastUpdatedTime,
       ...fields,
+      summary,
     ];
-    const query = `UPDATE notes SET last_updated_date=$1, last_updated_time=$2, date=$3, time=$4, duration_hour=$5, duration_minute=$6, duration_second=$7, behaviour=$8, number_of_birds=$9, flock_type=$10 WHERE id=${request.params.id} RETURNING *`;
+    const query = `UPDATE notes SET last_updated_date=$1, last_updated_time=$2, date=$3, time=$4, duration_hour=$5, duration_minute=$6, duration_second=$7, behaviour=$8, number_of_birds=$9, flock_type=$10, summary=$11 WHERE id=${request.params.id} RETURNING *`;
     pool.query(query, input, (error, result) => {
       if (error) {
         response.status(503).send('Error executing query');
