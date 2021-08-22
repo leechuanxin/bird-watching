@@ -1,5 +1,8 @@
 # File that sometimes appears on MacOS
 .DS_Store
 
+# Env files and variables
+.env
+
 # Dependency directories
 node_modules/

@@ -4,6 +4,7 @@ import methodOverride from 'method-override';
 import cookieParser from 'cookie-parser';
 import moment from 'moment';
 import jsSHA from 'jssha';
+import dotenv from 'dotenv';
 
 // Initialise DB connection
 const { Pool } = pg;
@@ -26,16 +27,26 @@ app.use(methodOverride('_method'));
 app.use(cookieParser());
 // Set public folder for static files
 app.use(express.static('public'));
+// Set up Node to pull process env values from .env files
+dotenv.config();
 
 // GLOBAL CONSTANTS
 const MAX_SUMMARY_LENGTH = 50;
+const { SALT } = process.env;
 
 app.get('/', (request, response) => {
-  if (
-    !request.cookies.loggedIn
-    || Number.isNaN(Number(request.cookies.loggedIn))
-    || Number(request.cookies.loggedIn) < 1
-  ) {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if hashed value doesn't match, return 403.
+  if (hashedCookieString !== loggedIn) {
     response.redirect('/login');
   } else {
     let query = 'SELECT notes.id, notes.behaviour, notes.created_date, notes.created_time, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id';
@@ -93,19 +104,28 @@ app.get('/', (request, response) => {
             createdDateTime: createdDateTimeLocal,
           };
         }) : result.rows;
-        response.render('index', { notes: rowsFmt, session: { sessionId: request.cookies.loggedIn }, sortBy: { param: sortByParam } });
+        response.render('index', { notes: rowsFmt, session: { sessionId: userId }, sortBy: { param: sortByParam } });
       }
     });
   }
 });
 
 app.get('/login', (request, response) => {
-  if (
-    request.cookies.loggedIn && Number(request.cookies.loggedIn) >= 1
-  ) {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if match, redirect straight to index
+  if (hashedCookieString === loggedIn) {
     response.redirect('/');
   } else {
-    response.render('login', { session: { sessionId: request.cookies.loggedIn } });
+    response.render('login', { session: { sessionId: userId } });
   }
 });
 
@@ -146,19 +166,38 @@ app.post('/login', (request, response) => {
       return;
     }
 
+    // create new SHA object for cookie
+    // eslint-disable-next-line new-cap
+    const shaObjCookie = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+    // create an unhashed cookie string based on user ID and salt
+    const unhashedCookieString = `${result.rows[0].id}-${SALT}`;
+    // generate a hashed cookie string using SHA object
+    shaObjCookie.update(unhashedCookieString);
+    const hashedCookieString = shaObjCookie.getHash('HEX');
+    // set the loggedIn and userId cookies in the response
     // The user's password hash matches that in the DB and we authenticate the user.
-    response.cookie('loggedIn', result.rows[0].id);
+    response.cookie('loggedIn', hashedCookieString);
+    response.cookie('userId', result.rows[0].id);
     response.redirect('/');
   });
 });
 
 app.get('/signup', (request, response) => {
-  if (
-    request.cookies.loggedIn && Number(request.cookies.loggedIn) >= 1
-  ) {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if match, redirect straight to index
+  if (hashedCookieString === loggedIn) {
     response.redirect('/');
   } else {
-    response.render('signup', { session: { sessionId: request.cookies.loggedIn } });
+    response.render('signup', { session: { sessionId: userId } });
   }
 });
 
@@ -192,6 +231,7 @@ app.post('/signup', (request, response) => {
 
 app.delete('/logout', (request, response) => {
   if (request.cookies.loggedIn) {
+    response.clearCookie('userId');
     response.clearCookie('loggedIn');
     response.redirect('/');
   } else {
@@ -200,24 +240,38 @@ app.delete('/logout', (request, response) => {
 });
 
 app.get('/note', (request, response) => {
-  if (
-    !request.cookies.loggedIn
-    || Number.isNaN(Number(request.cookies.loggedIn))
-    || Number(request.cookies.loggedIn) < 1
-  ) {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if not match, redirect straight to login
+  if (hashedCookieString !== loggedIn) {
     response.redirect('/login');
   } else {
     const typeObj = { type: { name: 'new' } };
-    response.render('newnote', { note: {}, session: { sessionId: request.cookies.loggedIn }, ...typeObj });
+    response.render('newnote', { note: {}, session: { sessionId: userId }, ...typeObj });
   }
 });
 
 app.post('/note', (request, response) => {
-  if (
-    !request.cookies.loggedIn
-    || Number.isNaN(Number(request.cookies.loggedIn))
-    || Number(request.cookies.loggedIn) < 1
-  ) {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if not match, status 403 forbidden
+  if (hashedCookieString !== loggedIn) {
     response.status(403).send('You need to be logged in!');
   } else {
     // retrieve field values from duration onwards (ignore date and time)
@@ -259,7 +313,7 @@ app.post('/note', (request, response) => {
       dateUtc,
       timeUtc,
       summary,
-      request.cookies.loggedIn,
+      request.cookies.userId,
     ];
     const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, duration_hour, duration_minute, duration_second, behaviour, number_of_birds, flock_type, date, time, summary, created_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *';
     pool.query(query, input, (error, result) => {
@@ -273,11 +327,18 @@ app.post('/note', (request, response) => {
 });
 
 app.get('/note/:id', (request, response) => {
-  if (
-    !request.cookies.loggedIn
-    || Number.isNaN(Number(request.cookies.loggedIn))
-    || Number(request.cookies.loggedIn) < 1
-  ) {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if not match, redirect straight to login
+  if (hashedCookieString !== loggedIn) {
     response.redirect('/login');
   } else {
     const { id } = request.params;
@@ -312,7 +373,7 @@ app.get('/note/:id', (request, response) => {
             date: dateTimeLocal.format('MMMM Do, YYYY'),
             time: dateTimeLocal.format('HH:mm A'),
           },
-          session: { sessionId: request.cookies.loggedIn },
+          session: { sessionId: userId },
         });
       }
     });
@@ -320,11 +381,18 @@ app.get('/note/:id', (request, response) => {
 });
 
 app.get('/note/:id/edit', (request, response) => {
-  if (
-    !request.cookies.loggedIn
-    || Number.isNaN(Number(request.cookies.loggedIn))
-    || Number(request.cookies.loggedIn) < 1
-  ) {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if not match, redirect straight to login
+  if (hashedCookieString !== loggedIn) {
     response.redirect('/login');
   } else {
     const { id } = request.params;
@@ -359,7 +427,7 @@ app.get('/note/:id/edit', (request, response) => {
             date: dateTimeLocal.format('YYYY-MM-DD'),
             time: dateTimeLocal.format('HH:mm:ss'),
           },
-          session: { sessionId: request.cookies.loggedIn },
+          session: { sessionId: userId },
           ...typeObj,
         });
       }
@@ -368,11 +436,18 @@ app.get('/note/:id/edit', (request, response) => {
 });
 
 app.put('/note/:id/edit', (request, response) => {
-  if (
-    !request.cookies.loggedIn
-    || Number.isNaN(Number(request.cookies.loggedIn))
-    || Number(request.cookies.loggedIn) < 1
-  ) {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if not match, status 403 forbidden
+  if (hashedCookieString !== loggedIn) {
     response.status(403).send('You need to be logged in!');
   } else {
     const fields = Object.values(request.body);
@@ -398,11 +473,18 @@ app.put('/note/:id/edit', (request, response) => {
 });
 
 app.delete('/note/:id/delete', (request, response) => {
-  if (
-    !request.cookies.loggedIn
-    || Number.isNaN(Number(request.cookies.loggedIn))
-    || Number(request.cookies.loggedIn) < 1
-  ) {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if not match, status 403 forbidden
+  if (hashedCookieString !== loggedIn) {
     response.status(403).send('You need to be logged in!');
   } else {
     const query = `DELETE FROM notes WHERE id=${request.params.id}`;
@@ -417,11 +499,18 @@ app.delete('/note/:id/delete', (request, response) => {
 });
 
 app.get('/users/:id', (request, response) => {
-  if (
-    !request.cookies.loggedIn
-    || Number.isNaN(Number(request.cookies.loggedIn))
-    || Number(request.cookies.loggedIn) < 1
-  ) {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if not match, redirect straight to login
+  if (hashedCookieString !== loggedIn) {
     response.redirect('/login');
   } else {
     const { id } = request.params;
@@ -444,7 +533,7 @@ app.get('/users/:id', (request, response) => {
             // we didnt find this id
             response.status(404).send('sorry, no notes found!');
           } else {
-            response.render('user_notes', { notes: notesQueryResult.rows, session: { sessionId: request.cookies.loggedIn } });
+            response.render('user_notes', { notes: notesQueryResult.rows, session: { sessionId: userId } });
           }
         });
       }
