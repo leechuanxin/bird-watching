@@ -4,13 +4,28 @@ session }); -%>
   <div class="row align-items-stretch w-100 pt-3">
     <div class="col-12">
       <% if (notes.length > 0) { %>
+      <div class="row mb-3">
+        <div class="col-6">
+        </div>
+        <div class="col-6">
+          <label for="sortBy">Sort by:</label>
+          <select id="sortBy" class="form-select" aria-label="Default select example">
+            <option <% if (sortBy.param === "") { %>selected<% } %> value="created_time_latest">Created Time: Latest First</option>
+            <option <% if (sortBy.param === "created_time_oldest") { %>selected<% } %> value="created_time_oldest">Created Time: Oldest First</option>
+            <option <% if (sortBy.param === "summary_asc") { %>selected<% } %> value="summary_asc">Behaviour Summary: Ascending</option>
+            <option <% if (sortBy.param === "summary_desc") { %>selected<% } %> value="summary_desc">Behaviour Summary: Descending</option>
+            <option <% if (sortBy.param === "email_asc") { %>selected<% } %> value="email_asc">Author Email: Ascending</option>
+            <option <% if (sortBy.param === "email_desc") { %>selected<% } %> value="email_desc">Author Email: Descending</option>
+          </select>
+        </div>
+      </div>
       <table class="table">
         <thead>
           <tr>
             <th scope="col">#</th>
             <th scope="col">Created Time</th>
-            <th scope="col">Link</th>
-            <th scope="col">Author</th>
+            <th scope="col">Behaviour Summary</th>
+            <th scope="col">Author Email</th>
           </tr>
         </thead>
         <tbody>

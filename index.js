@@ -24,6 +24,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(methodOverride('_method'));
 // To parse cookie string value in the header into a JavaScript Object
 app.use(cookieParser());
+// Set public folder for static files
+app.use(express.static('public'));
 
 // GLOBAL CONSTANTS
 const MAX_SUMMARY_LENGTH = 50;
@@ -36,7 +38,37 @@ app.get('/', (request, response) => {
   ) {
     response.redirect('/login');
   } else {
-    const query = 'SELECT notes.id, notes.behaviour, notes.created_date, notes.created_time, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id ORDER BY created_date DESC, created_time DESC';
+    let query = 'SELECT notes.id, notes.behaviour, notes.created_date, notes.created_time, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id';
+    let sortStr = '';
+    let sortByParam = '';
+
+    switch (request.query.sort_by) {
+      case 'created_time_oldest':
+        sortStr = ' ORDER BY created_date ASC, created_time ASC';
+        sortByParam = request.query.sort_by;
+        break;
+      case 'summary_asc':
+        sortStr = ' ORDER BY summary ASC';
+        sortByParam = request.query.sort_by;
+        break;
+      case 'summary_desc':
+        sortStr = ' ORDER BY summary DESC';
+        sortByParam = request.query.sort_by;
+        break;
+      case 'email_asc':
+        sortStr = ' ORDER BY email ASC, created_date DESC, created_time DESC';
+        sortByParam = request.query.sort_by;
+        break;
+      case 'email_desc':
+        sortStr = ' ORDER BY email DESC, created_date DESC, created_time DESC';
+        sortByParam = request.query.sort_by;
+        break;
+      default:
+        sortStr = ' ORDER BY created_date DESC, created_time DESC';
+        break;
+    }
+
+    query += sortStr;
     pool.query(query, (error, result) => {
       if (error) {
         response.status(503).send('Error executing query');
@@ -61,7 +93,7 @@ app.get('/', (request, response) => {
             createdDateTime: createdDateTimeLocal,
           };
         }) : result.rows;
-        response.render('index', { notes: rowsFmt, session: { sessionId: request.cookies.loggedIn } });
+        response.render('index', { notes: rowsFmt, session: { sessionId: request.cookies.loggedIn }, sortBy: { param: sortByParam } });
       }
     });
   }
