@@ -36,7 +36,7 @@ app.get('/', (request, response) => {
   ) {
     response.redirect('/login');
   } else {
-    const query = 'SELECT notes.id, notes.behaviour, notes.created_date, notes.created_time, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id';
+    const query = 'SELECT notes.id, notes.behaviour, notes.created_date, notes.created_time, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id ORDER BY created_date DESC, created_time DESC';
     pool.query(query, (error, result) => {
       if (error) {
         response.status(503).send('Error executing query');
