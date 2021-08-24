@@ -294,9 +294,13 @@ app.post('/note', (request, response) => {
     response.status(403).send('You need to be logged in!');
   } else {
     // retrieve field values from duration onwards (ignore date and time and notes_behaviours)
-    const fields = Object.values(request.body).slice(2, 5).concat(
-      Object.values(request.body).slice(6),
-    );
+    const keys = Object.keys(request.body);
+    let fields = Object.values(request.body).slice(2);
+    if (keys.indexOf('notes_behaviours') >= 0) {
+      fields = Object.values(request.body).slice(2, 5).concat(
+        Object.values(request.body).slice(6),
+      );
+    }
     const currentTime = new Date();
     const currentTimeUtc = moment.utc(
       Date.UTC(
@@ -310,7 +314,7 @@ app.post('/note', (request, response) => {
     );
     const createdDate = currentTimeUtc.format('YYYY-MM-DD');
     const createdTime = currentTimeUtc.format('HH:mm:ss');
-    const dateTime = new Date(`${request.body.date}T${request.body.time}:00`);
+    const dateTime = new Date(`${request.body.date}T${request.body.time}`);
     const dateTimeUtc = moment.utc(
       Date.UTC(
         dateTime.getUTCFullYear(),
@@ -323,7 +327,16 @@ app.post('/note', (request, response) => {
     );
     const dateUtc = dateTimeUtc.format('YYYY-MM-DD');
     const timeUtc = dateTimeUtc.format('HH:mm:ss');
-    const notesBehaviours = request.body.notes_behaviours;
+    let notesBehaviours;
+    if (!request.body.notes_behaviours) {
+      notesBehaviours = [];
+    } else if (Array.isArray(request.body.notes_behaviours)) {
+      notesBehaviours = request.body.notes_behaviours;
+    } else {
+      // is number
+      notesBehaviours = [request.body.notes_behaviours];
+    }
+
     const input = [
       createdDate,
       createdTime,
@@ -536,26 +549,91 @@ app.put('/note/:id/edit', (request, response) => {
         if (hashedCreatedUserString !== hashedCookieString) {
           response.status(403).send('You cannot edit a note where you aren\'t the owner!');
         } else {
-          const fields = Object.values(request.body);
-          const currentTime = moment();
-          const lastUpdatedDate = currentTime.format('YYYY-MM-DD');
-          const lastUpdatedTime = currentTime.format('HH:mm:ss');
+          // retrieve field values from duration onwards (ignore date and time and notes_behaviours)
+          const keys = Object.keys(request.body);
+          let fields = Object.values(request.body).slice(2);
+          if (keys.indexOf('notes_behaviours') >= 0) {
+            fields = Object.values(request.body).slice(2, 5).concat(
+              Object.values(request.body).slice(6),
+            );
+          }
+          const currentTime = new Date();
+          const currentTimeUtc = moment.utc(
+            Date.UTC(
+              currentTime.getUTCFullYear(),
+              currentTime.getUTCMonth(),
+              currentTime.getUTCDate(),
+              currentTime.getUTCHours(),
+              currentTime.getUTCMinutes(),
+              currentTime.getUTCSeconds(),
+            ),
+          );
+          const lastUpdatedDate = currentTimeUtc.format('YYYY-MM-DD');
+          const lastUpdatedTime = currentTimeUtc.format('HH:mm:ss');
+          const dateTime = new Date(`${request.body.date}T${request.body.time}`);
+          const dateTimeUtc = moment.utc(
+            Date.UTC(
+              dateTime.getUTCFullYear(),
+              dateTime.getUTCMonth(),
+              dateTime.getUTCDate(),
+              dateTime.getUTCHours(),
+              dateTime.getUTCMinutes(),
+              dateTime.getUTCSeconds(),
+            ),
+          );
+          const dateUtc = dateTimeUtc.format('YYYY-MM-DD');
+          const timeUtc = dateTimeUtc.format('HH:mm:ss');
+          let notesBehaviours;
+          if (!request.body.notes_behaviours) {
+            notesBehaviours = [];
+          } else if (Array.isArray(request.body.notes_behaviours)) {
+            notesBehaviours = request.body.notes_behaviours;
+          } else {
+            // is number
+            notesBehaviours = [request.body.notes_behaviours];
+          }
+
           const input = [
             lastUpdatedDate,
             lastUpdatedTime,
             ...fields,
+            dateUtc,
+            timeUtc,
           ];
-          const query = `UPDATE notes SET last_updated_date=$1, last_updated_time=$2, date=$3, time=$4, duration_hour=$5, duration_minute=$6, duration_second=$7, behaviour=$8, number_of_birds=$9, flock_type=$10, species_id=$11, summary=$12 WHERE id=${request.params.id} RETURNING *`;
+          const query = `UPDATE notes SET last_updated_date=$1, last_updated_time=$2, duration_hour=$3, duration_minute=$4, duration_second=$5, number_of_birds=$6, flock_type=$7, species_id=$8, date=$9, time=$10 WHERE id=${request.params.id} RETURNING *`;
           pool.query(query, input, (error, result) => {
             if (error) {
-              response.status(503).send('Error executing query');
+              response.status(503).send(`Error executing query for editing note ID ${request.params.id}.`);
+            } else if (notesBehaviours.length > 0) {
+              let notesBehavQuery = `DELETE FROM notes_behaviours WHERE note_id=${request.params.id}; INSERT INTO notes_behaviours (note_id, behaviour_id) VALUES `;
+              notesBehaviours.forEach((behaviourId, index) => {
+                if (index === 0) {
+                  notesBehavQuery += `(${result.rows[0].id}, ${behaviourId})`;
+                } else {
+                  notesBehavQuery += `, (${result.rows[0].id}, ${behaviourId})`;
+                }
+              });
+              pool.query(notesBehavQuery, (notesBehavErr) => {
+                if (notesBehavErr) {
+                  response.status(503).send('Error executing query for adding behaviours.');
+                } else {
+                  response.redirect(`/note/${result.rows[0].id}`);
+                }
+              });
             } else {
-              response.redirect(`/note/${result.rows[0].id}`);
+              const deleteAllBehavQuery = `DELETE FROM notes_behaviours WHERE note_id=${request.params.id}`;
+              pool.query(deleteAllBehavQuery, (deleteAllBehavErr) => {
+                if (deleteAllBehavErr) {
+                  response.status(503).send('Error executing query for removing behaviours.');
+                } else {
+                  response.redirect(`/note/${result.rows[0].id}`);
+                }
+              });
             }
           });
         }
       } else {
-        response.status(503).send('Error executing query');
+        response.status(503).send(`Error executing query of finding note ID ${request.params.id}.`);
       }
     });
   }
@@ -587,7 +665,7 @@ app.delete('/note/:id/delete', (request, response) => {
         if (hashedCreatedUserString !== hashedCookieString) {
           response.status(403).send('You cannot delete a note where you aren\'t the owner!');
         } else {
-          const query = `DELETE FROM notes WHERE id=${request.params.id}`;
+          const query = `DELETE FROM notes WHERE id=${request.params.id}; DELETE FROM notes_behaviours WHERE note_id=${request.params.id}`;
           pool.query(query, (error) => {
             if (error) {
               response.status(503).send('Error executing query');
@@ -688,7 +766,7 @@ app.delete('/behaviours/:id/delete', (request, response) => {
   if (hashedCookieString !== loggedIn) {
     response.status(403).send('You need to be logged in!');
   } else {
-    const query = `DELETE FROM behaviours WHERE id=${request.params.id}`;
+    const query = `DELETE FROM behaviours WHERE id=${request.params.id}; DELETE FROM notes_behaviours WHERE behaviour_id=${request.params.id}`;
     pool.query(query, (error) => {
       if (error) {
         response.status(503).send('Error executing query');
