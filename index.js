@@ -49,7 +49,7 @@ app.get('/', (request, response) => {
   if (hashedCookieString !== loggedIn) {
     response.redirect('/login');
   } else {
-    let query = 'SELECT notes.id, notes.behaviour, notes.created_date, notes.created_time, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email FROM notes INNER JOIN users ON notes.created_user_id = users.id';
+    let query = 'SELECT notes.id, notes.behaviour, notes.created_date, notes.created_time, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email, notes.species_id, species.name, species.scientific_name FROM notes INNER JOIN users ON notes.created_user_id = users.id INNER JOIN species ON species.id = notes.species_id';
     let sortStr = '';
     let sortByParam = '';
 
@@ -58,12 +58,12 @@ app.get('/', (request, response) => {
         sortStr = ' ORDER BY created_date ASC, created_time ASC';
         sortByParam = request.query.sort_by;
         break;
-      case 'summary_asc':
-        sortStr = ' ORDER BY summary ASC';
+      case 'species_asc':
+        sortStr = ' ORDER BY name ASC, scientific_name ASC';
         sortByParam = request.query.sort_by;
         break;
-      case 'summary_desc':
-        sortStr = ' ORDER BY summary DESC';
+      case 'species_desc':
+        sortStr = ' ORDER BY name DESC, scientific_name DESC';
         sortByParam = request.query.sort_by;
         break;
       case 'email_asc':
