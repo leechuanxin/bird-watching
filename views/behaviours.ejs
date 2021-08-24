@@ -18,7 +18,6 @@ session }); -%>
             <th scope="row"><%= idx + 1 %></th>
             <td><%= behaviour.name %></td>
             <td>
-              <a class="btn btn-primary" href="/behaviours/<%= behaviour.id %>/edit">Edit</a>
               <form
                 class="d-inline-block"
                 action="/behaviours/<%= behaviour.id %>/delete?_method=DELETE"
