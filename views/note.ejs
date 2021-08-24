@@ -55,16 +55,22 @@
         </div>
       </div>
       <hr class="mb-3" />
+      <% if (note.behaviours.length > 0) { %>
       <div class="row">
         <div class="col-12 mb-3">
           <h4 class="mb-3 index-header">Behaviours</h4>
           <p>
             <strong>Tell us the behaviour of the birds!</strong>
           </p>
-          <p><%= note.behaviour %></p>
+          <p>
+            <% note.behaviours.forEach((behaviour, idx) => { %><% if (idx <
+            note.behaviours.length - 1) { %><%= behaviour %>, <% } else { %><%=
+            behaviour %><% } %><% }); %>
+          </p>
         </div>
       </div>
       <hr class="mb-3" />
+      <% } %>
       <div class="row">
         <div class="col-12">
           <h4 class="mb-3 index-header">Flock Size</h4>

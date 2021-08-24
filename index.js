@@ -380,7 +380,7 @@ app.get('/note/:id', (request, response) => {
     const query = `SELECT notes.id, notes.created_date, notes.created_time, notes.last_updated_date, notes.last_updated_time, notes.date, notes.time, notes.duration_hour, notes.duration_minute, notes.duration_second, notes.number_of_birds, notes.flock_type, notes.created_user_id, notes.species_id, species.name, species.scientific_name FROM notes INNER JOIN species ON notes.species_id = species.id WHERE notes.id=${id}`;
     pool.query(query, (error, result) => {
       if (error) {
-        response.status(503).send(`Error executing query: ${result.rows}`);
+        response.status(503).send(`Error executing query for viewing note ${id}.`);
         return;
       }
 
@@ -388,27 +388,36 @@ app.get('/note/:id', (request, response) => {
       // we didnt find this id
         response.status(404).send('sorry, id not found!');
       } else {
-        const dateFmt = moment(result.rows[0].date).format('YYYY-MM-DD').split('-');
-        const timeFmt = result.rows[0].time.split(':');
-        const dateTimeUtc = moment.utc(
-          Date.UTC(
-            Number(dateFmt[0]),
-            Number(dateFmt[1]) - 1,
-            Number(dateFmt[2]),
-            Number(timeFmt[0]),
-            Number(timeFmt[1]),
-            Number(timeFmt[2]),
-          ),
-        );
-        const dateTimeLocal = dateTimeUtc.local();
+        const behavQuery = `SELECT behaviours.name FROM notes_behaviours INNER JOIN behaviours ON behaviours.id = notes_behaviours.behaviour_id WHERE note_id=${id}`;
+        pool.query(behavQuery, (behavError, behavRes) => {
+          if (behavError) {
+            response.status(503).send(`Error executing query for viewing behaviours in note ${id}.`);
+          } else {
+            const dateFmt = moment(result.rows[0].date).format('YYYY-MM-DD').split('-');
+            const timeFmt = result.rows[0].time.split(':');
+            const dateTimeUtc = moment.utc(
+              Date.UTC(
+                Number(dateFmt[0]),
+                Number(dateFmt[1]) - 1,
+                Number(dateFmt[2]),
+                Number(timeFmt[0]),
+                Number(timeFmt[1]),
+                Number(timeFmt[2]),
+              ),
+            );
+            const dateTimeLocal = dateTimeUtc.local();
+            const behavioursList = behavRes.rows.map((item) => item.name);
 
-        response.render('note', {
-          note: {
-            ...result.rows[0],
-            date: dateTimeLocal.format('MMMM Do, YYYY'),
-            time: dateTimeLocal.format('HH:mm A'),
-          },
-          session: { sessionId: userId },
+            response.render('note', {
+              note: {
+                ...result.rows[0],
+                date: dateTimeLocal.format('MMMM Do, YYYY'),
+                time: dateTimeLocal.format('HH:mm A'),
+                behaviours: behavioursList,
+              },
+              session: { sessionId: userId },
+            });
+          }
         });
       }
     });
