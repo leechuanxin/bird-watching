@@ -31,7 +31,6 @@ app.use(express.static('public'));
 dotenv.config();
 
 // GLOBAL CONSTANTS
-const MAX_SUMMARY_LENGTH = 50;
 const { SALT } = process.env;
 
 app.get('/', (request, response) => {
@@ -49,7 +48,7 @@ app.get('/', (request, response) => {
   if (hashedCookieString !== loggedIn) {
     response.redirect('/login');
   } else {
-    let query = 'SELECT notes.id, notes.behaviour, notes.created_date, notes.created_time, notes.summary, notes.created_user_id, users.id AS matched_user_id, users.email, notes.species_id, species.name, species.scientific_name FROM notes INNER JOIN users ON notes.created_user_id = users.id INNER JOIN species ON species.id = notes.species_id';
+    let query = 'SELECT notes.id, notes.created_date, notes.created_time, notes.created_user_id, users.email, species.name, species.scientific_name FROM notes INNER JOIN users ON notes.created_user_id = users.id INNER JOIN species ON species.id = notes.species_id';
     let sortStr = '';
     let sortByParam = '';
 
@@ -257,14 +256,22 @@ app.get('/note', (request, response) => {
     const query = 'SELECT * FROM species';
     pool.query(query, (error, result) => {
       if (error) {
-        response.status(503).send('Error executing query');
+        response.status(503).send('Error executing species query');
       } else {
-        const typeObj = { type: { name: 'new' } };
-        response.render('newnote', {
-          note: {},
-          session: { sessionId: userId },
-          species: { speciesList: result.rows, currentSpecies: 0 },
-          ...typeObj,
+        const behavioursQuery = 'SELECT * FROM behaviours';
+        pool.query(behavioursQuery, (beQueError, beQueResult) => {
+          if (beQueError) {
+            response.status(503).send('Error executing behaviours query');
+          } else {
+            const typeObj = { type: { name: 'new' } };
+            response.render('newnote', {
+              note: {},
+              session: { sessionId: userId },
+              species: { speciesList: result.rows, currentSpecies: 0 },
+              behaviours: { list: beQueResult.rows },
+              ...typeObj,
+            });
+          }
         });
       }
     });
@@ -286,8 +293,10 @@ app.post('/note', (request, response) => {
   if (hashedCookieString !== loggedIn) {
     response.status(403).send('You need to be logged in!');
   } else {
-    // retrieve field values from duration onwards (ignore date and time)
-    const fields = Object.values(request.body).slice(2);
+    // retrieve field values from duration onwards (ignore date and time and notes_behaviours)
+    const fields = Object.values(request.body).slice(2, 5).concat(
+      Object.values(request.body).slice(6),
+    );
     const currentTime = new Date();
     const currentTimeUtc = moment.utc(
       Date.UTC(
@@ -314,8 +323,7 @@ app.post('/note', (request, response) => {
     );
     const dateUtc = dateTimeUtc.format('YYYY-MM-DD');
     const timeUtc = dateTimeUtc.format('HH:mm:ss');
-
-    const summary = (request.body && request.body.behaviour && request.body.behaviour.trim() !== '' && request.body.behaviour.length > MAX_SUMMARY_LENGTH) ? request.body.behaviour.substring(0, MAX_SUMMARY_LENGTH).concat('...') : request.body.behaviour;
+    const notesBehaviours = request.body.notes_behaviours;
     const input = [
       createdDate,
       createdTime,
@@ -324,13 +332,28 @@ app.post('/note', (request, response) => {
       ...fields,
       dateUtc,
       timeUtc,
-      summary,
       request.cookies.userId,
     ];
-    const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, duration_hour, duration_minute, duration_second, behaviour, number_of_birds, flock_type, species_id, date, time, summary, created_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *';
+    const query = 'INSERT INTO notes (created_date, created_time, last_updated_date, last_updated_time, duration_hour, duration_minute, duration_second, number_of_birds, flock_type, species_id, date, time, created_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *';
     pool.query(query, input, (error, result) => {
       if (error) {
-        response.status(503).send('Error executing query');
+        response.status(503).send('Error executing query for submitting new form.');
+      } else if (notesBehaviours.length > 0) {
+        let notesBehavQuery = 'INSERT INTO notes_behaviours (note_id, behaviour_id) VALUES ';
+        notesBehaviours.forEach((behaviourId, index) => {
+          if (index === 0) {
+            notesBehavQuery += `(${result.rows[0].id}, ${behaviourId})`;
+          } else {
+            notesBehavQuery += `, (${result.rows[0].id}, ${behaviourId})`;
+          }
+        });
+        pool.query(notesBehavQuery, (notesBehavErr) => {
+          if (notesBehavErr) {
+            response.status(503).send('Error executing query for adding behaviours.');
+          } else {
+            response.redirect(`/note/${result.rows[0].id}`);
+          }
+        });
       } else {
         response.redirect(`/note/${result.rows[0].id}`);
       }
@@ -354,7 +377,7 @@ app.get('/note/:id', (request, response) => {
     response.redirect('/login');
   } else {
     const { id } = request.params;
-    const query = `SELECT notes.id, notes.created_date, notes.created_time, notes.last_updated_date, notes.last_updated_time, notes.date, notes.time, notes.duration_hour, notes.duration_minute, notes.duration_second, notes.behaviour, notes.number_of_birds, notes.flock_type, notes.created_user_id, notes.summary, notes.species_id, species.name, species.scientific_name FROM notes INNER JOIN species ON notes.species_id = species.id WHERE notes.id=${id}`;
+    const query = `SELECT notes.id, notes.created_date, notes.created_time, notes.last_updated_date, notes.last_updated_time, notes.date, notes.time, notes.duration_hour, notes.duration_minute, notes.duration_second, notes.number_of_birds, notes.flock_type, notes.created_user_id, notes.species_id, species.name, species.scientific_name FROM notes INNER JOIN species ON notes.species_id = species.id WHERE notes.id=${id}`;
     pool.query(query, (error, result) => {
       if (error) {
         response.status(503).send(`Error executing query: ${result.rows}`);
@@ -490,12 +513,10 @@ app.put('/note/:id/edit', (request, response) => {
           const currentTime = moment();
           const lastUpdatedDate = currentTime.format('YYYY-MM-DD');
           const lastUpdatedTime = currentTime.format('HH:mm:ss');
-          const summary = (request.body && request.body.behaviour && request.body.behaviour.trim() !== '' && request.body.behaviour.length > MAX_SUMMARY_LENGTH) ? request.body.behaviour.substring(0, MAX_SUMMARY_LENGTH).concat('...') : request.body.behaviour;
           const input = [
             lastUpdatedDate,
             lastUpdatedTime,
             ...fields,
-            summary,
           ];
           const query = `UPDATE notes SET last_updated_date=$1, last_updated_time=$2, date=$3, time=$4, duration_hour=$5, duration_minute=$6, duration_second=$7, behaviour=$8, number_of_birds=$9, flock_type=$10, species_id=$11, summary=$12 WHERE id=${request.params.id} RETURNING *`;
           pool.query(query, input, (error, result) => {

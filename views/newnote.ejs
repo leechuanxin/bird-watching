@@ -90,19 +90,19 @@
         <div class="row">
           <div class="col-12 mb-3">
             <h4 class="mb-3 index-header">Behaviours</h4>
-            <label class="index-header2" for="behaviour">
+            <p>
               <strong>Tell us the behaviour of the birds!</strong>
-            </label>
-            <textarea
-              class="form-control"
-              id="behaviour"
-              name="behaviour"
-              rows="5"
-              placeholder="Take notes on what the bird was doing as you observed it. Note general actions and specific reactions to changing conditions, such as the appearance of a predator or how the bird interacts with other birds. Note large actions such as preening, flight patterns, and foraging habits as well as small movements such as tail bobs, head cocks or wing stretches."
-            >
-<%= note.behaviour %></textarea
-            >
-            <div class="invalid-feedback">Some invalid feedback</div>
+            </p>
+            <div class="row px-3">
+              <% behaviours.list.forEach((behaviour, idx) => { %>
+              <div class="form-check col-6 col-md-4">
+                <input class="form-check-input" name="notes_behaviours" type="checkbox" value="<%= behaviour.id %>" id="behaviourCb<%= behaviour.id %>">
+                <label class="form-check-label" for="behaviourCb<%= behaviour.id %>">
+                  <%= behaviour.name %>
+                </label>
+              </div>
+              <% }); %>
+            </div>
           </div>
         </div>
         <hr class="mb-3" />
