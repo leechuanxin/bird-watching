@@ -96,7 +96,7 @@
             <div class="row px-3">
               <% behaviours.list.forEach((behaviour, idx) => { %>
               <div class="form-check col-6 col-md-4">
-                <input class="form-check-input" name="notes_behaviours" type="checkbox" value="<%= behaviour.id %>" id="behaviourCb<%= behaviour.id %>">
+                <input class="form-check-input" name="notes_behaviours" type="checkbox" value="<%= behaviour.id %>" id="behaviourCb<%= behaviour.id %>" <% if (behaviours.checked.indexOf(behaviour.id) >= 0) { %>checked<% } %>>
                 <label class="form-check-label" for="behaviourCb<%= behaviour.id %>">
                   <%= behaviour.name %>
                 </label>

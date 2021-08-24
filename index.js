@@ -268,7 +268,7 @@ app.get('/note', (request, response) => {
               note: {},
               session: { sessionId: userId },
               species: { speciesList: result.rows, currentSpecies: 0 },
-              behaviours: { list: beQueResult.rows },
+              behaviours: { list: beQueResult.rows, checked: [] },
               ...typeObj,
             });
           }
@@ -448,10 +448,10 @@ app.get('/note/:id/edit', (request, response) => {
         const speciesList = { speciesList: result.rows };
 
         const { id } = request.params;
-        const getFormQuery = `SELECT notes.id, notes.created_date, notes.created_time, notes.last_updated_date, notes.last_updated_time, notes.date, notes.time, notes.duration_hour, notes.duration_minute, notes.duration_second, notes.behaviour, notes.number_of_birds, notes.flock_type, notes.created_user_id, notes.summary, notes.species_id, species.name, species.scientific_name FROM notes INNER JOIN species ON notes.species_id = species.id WHERE notes.id=${id}`;
+        const getFormQuery = `SELECT notes.id, notes.created_date, notes.created_time, notes.last_updated_date, notes.last_updated_time, notes.date, notes.time, notes.duration_hour, notes.duration_minute, notes.duration_second, notes.number_of_birds, notes.flock_type, notes.created_user_id, notes.species_id, species.name, species.scientific_name FROM notes INNER JOIN species ON notes.species_id = species.id WHERE notes.id=${id}`;
         pool.query(getFormQuery, (getFormError, getFormResult) => {
           if (getFormError) {
-            response.status(503).send(`Error executing query: ${getFormResult.rows}`);
+            response.status(503).send('Error executing query: can\'t retrieve note data.');
             return;
           }
 
@@ -459,31 +459,49 @@ app.get('/note/:id/edit', (request, response) => {
             // we didnt find this id
             response.status(404).send('sorry, id not found!');
           } else {
-            const dateFmt = moment(getFormResult.rows[0].date).format('YYYY-MM-DD').split('-');
-            const timeFmt = getFormResult.rows[0].time.split(':');
-            const dateTimeUtc = moment.utc(
-              Date.UTC(
-                Number(dateFmt[0]),
-                Number(dateFmt[1]) - 1,
-                Number(dateFmt[2]),
-                Number(timeFmt[0]),
-                Number(timeFmt[1]),
-                Number(timeFmt[2]),
-              ),
-            );
-            const dateTimeLocal = dateTimeUtc.local();
-            response.render('newnote', {
-              note: {
-                ...getFormResult.rows[0],
-                date: dateTimeLocal.format('YYYY-MM-DD'),
-                time: dateTimeLocal.format('HH:mm:ss'),
-              },
-              species: {
-                ...speciesList,
-                currentSpecies: getFormResult.rows[0].species_id || 0,
-              },
-              session: { sessionId: userId },
-              ...typeObj,
+            const behavioursQuery = 'SELECT * FROM behaviours';
+            pool.query(behavioursQuery, (beQueError, beQueResult) => {
+              if (beQueError) {
+                response.status(503).send('Error executing behaviours query');
+              } else {
+                const checkedBehavQuery = `SELECT behaviours.id FROM notes_behaviours INNER JOIN behaviours ON behaviours.id = notes_behaviours.behaviour_id WHERE note_id=${id}`;
+                pool.query(checkedBehavQuery, (checkedBehavErr, checkedBehavRes) => {
+                  if (checkedBehavErr) {
+                    response.status(503).send('Error executing checked behaviours query');
+                  } else {
+                    const dateFmt = moment(getFormResult.rows[0].date).format('YYYY-MM-DD').split('-');
+                    const timeFmt = getFormResult.rows[0].time.split(':');
+                    const dateTimeUtc = moment.utc(
+                      Date.UTC(
+                        Number(dateFmt[0]),
+                        Number(dateFmt[1]) - 1,
+                        Number(dateFmt[2]),
+                        Number(timeFmt[0]),
+                        Number(timeFmt[1]),
+                        Number(timeFmt[2]),
+                      ),
+                    );
+                    const dateTimeLocal = dateTimeUtc.local();
+                    response.render('newnote', {
+                      note: {
+                        ...getFormResult.rows[0],
+                        date: dateTimeLocal.format('YYYY-MM-DD'),
+                        time: dateTimeLocal.format('HH:mm:ss'),
+                      },
+                      species: {
+                        ...speciesList,
+                        currentSpecies: getFormResult.rows[0].species_id || 0,
+                      },
+                      behaviours: {
+                        list: beQueResult.rows,
+                        checked: checkedBehavRes.rows.map((behav) => behav.id),
+                      },
+                      session: { sessionId: userId },
+                      ...typeObj,
+                    });
+                  }
+                });
+              }
             });
           }
         });
