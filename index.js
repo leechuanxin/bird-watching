@@ -8,12 +8,29 @@ import dotenv from 'dotenv';
 
 // Initialise DB connection
 const { Pool } = pg;
-const pgConnectionConfigs = {
-  user: 'chuanxin',
-  host: 'localhost',
-  database: 'birding',
-  port: 5432, // Postgres server always runs on this port by default
-};
+// create separate DB connection configs for production vs non-production environments.
+// ensure our server still works on our local machines.
+let pgConnectionConfigs;
+if (process.env.ENV === 'PRODUCTION') {
+  // determine how we connect to the remote Postgres server
+  pgConnectionConfigs = {
+    user: 'postgres',
+    // set DB_PASSWORD as an environment variable for security.
+    password: process.env.DB_PASSWORD,
+    host: 'localhost',
+    database: 'birding',
+    port: 5432, // Postgres server always runs on this port by default
+  };
+} else {
+  // determine how we connect to the local Postgres server
+  pgConnectionConfigs = {
+    user: 'chuanxin',
+    host: 'localhost',
+    database: 'birding',
+    port: 5432, // Postgres server always runs on this port by default
+  };
+}
+
 const pool = new Pool(pgConnectionConfigs);
 
 const app = express();
@@ -32,6 +49,7 @@ dotenv.config();
 
 // GLOBAL CONSTANTS
 const { SALT } = process.env;
+const PORT = process.argv[2];
 
 app.get('/', (request, response) => {
   const { loggedIn, userId } = request.cookies;
@@ -777,4 +795,4 @@ app.delete('/behaviours/:id/delete', (request, response) => {
   }
 });
 
-app.listen(3004);
+app.listen(PORT);
