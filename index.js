@@ -625,4 +625,30 @@ app.get('/behaviours', (request, response) => {
   }
 });
 
+app.delete('/behaviours/:id/delete', (request, response) => {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if not match, status 403 forbidden
+  if (hashedCookieString !== loggedIn) {
+    response.status(403).send('You need to be logged in!');
+  } else {
+    const query = `DELETE FROM behaviours WHERE id=${request.params.id}`;
+    pool.query(query, (error) => {
+      if (error) {
+        response.status(503).send('Error executing query');
+      } else {
+        response.redirect('/behaviours');
+      }
+    });
+  }
+});
+
 app.listen(3004);
