@@ -1,0 +1,42 @@
+<%- include('headers/html-header', {}); -%> <%- include('nav/navbar', { session:
+session }); -%>
+<div class="container-fluid d-flex align-items-stretch pt-5">
+  <div class="row align-items-stretch w-100 pt-3">
+    <div class="col-12">
+      <% if (behaviours.list.length > 0) { %>
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Behaviour</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% behaviours.list.forEach((behaviour, idx) => { %>
+          <tr>
+            <th scope="row"><%= idx + 1 %></th>
+            <td><%= behaviour.name %></td>
+            <td>
+              <a class="btn btn-primary" href="/behaviours/<%= behaviour.id %>/edit">Edit</a>
+              <form
+                class="d-inline-block"
+                action="/behaviours/<%= behaviour.id %>/delete?_method=DELETE"
+                method="POST"
+              >
+                <input class="btn btn-danger" type="submit" value="Delete" />
+              </form>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <% } else { %>
+       <p>There are no behaviours.</p>
+      <% } %>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<%- include('footers/html-footer'); -%>

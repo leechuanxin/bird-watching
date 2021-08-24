@@ -598,4 +598,31 @@ app.get('/users/:id', (request, response) => {
   }
 });
 
+app.get('/behaviours', (request, response) => {
+  const { loggedIn, userId } = request.cookies;
+  // create new SHA object
+  // eslint-disable-next-line new-cap
+  const shaObj = new jsSHA('SHA-512', 'TEXT', { encoding: 'UTF8' });
+  // reconstruct the hashed cookie string
+  const unhashedCookieString = `${userId}-${SALT}`;
+  shaObj.update(unhashedCookieString);
+  const hashedCookieString = shaObj.getHash('HEX');
+
+  // verify if the generated hashed cookie string matches the request cookie value.
+  // if hashed value doesn't match, return 403.
+  if (hashedCookieString !== loggedIn) {
+    response.redirect('/login');
+  } else {
+    const query = 'SELECT * FROM behaviours ORDER BY id ASC';
+
+    pool.query(query, (error, result) => {
+      if (error) {
+        response.status(503).send('Error executing query');
+      } else {
+        response.render('behaviours', { behaviours: { list: result.rows }, session: { sessionId: userId } });
+      }
+    });
+  }
+});
+
 app.listen(3004);
